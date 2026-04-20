@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
+import { FollowUpWidget } from "@/components/FollowUpWidget";
+import { OnboardingJourney } from "@/components/OnboardingJourney";
 import { Users, Calendar, BookOpen, MessageCircle, BarChart3, HandHeart, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -70,6 +72,23 @@ function Dashboard() {
           <StatCard label="Total members" value={stats.total} icon={Users} />
           <StatCard label="New arrivals" value={stats.newCount} icon={Sparkles} accent />
           <StatCard label="Active" value={stats.active} icon={HandHeart} />
+        </div>
+
+        {/* Journey + Follow-up */}
+        <div className="mb-10 grid gap-5 lg:grid-cols-2">
+          <div
+            className="rounded-2xl border border-border bg-card p-6"
+            style={{ boxShadow: "var(--shadow-soft)" }}
+          >
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <h3 className="font-serif text-lg font-semibold">Your journey</h3>
+            </div>
+            <OnboardingJourney userId={user.id} />
+          </div>
+          <FollowUpWidget />
         </div>
 
         {/* Modules */}
