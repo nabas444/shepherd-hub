@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { FollowUpWidget } from "@/components/FollowUpWidget";
 import { OnboardingJourney } from "@/components/OnboardingJourney";
+import { DailyWordWidget } from "@/components/DailyWordWidget";
 import { Users, Calendar, BookOpen, MessageCircle, BarChart3, HandHeart, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -54,7 +55,7 @@ function Dashboard() {
     { to: "/members", icon: Users, title: "Members", desc: "Manage your fellowship", live: true },
     { to: "/dashboard", icon: BarChart3, title: "Engagement", desc: "Insights & analytics", live: false },
     { to: "/events", icon: Calendar, title: "Events", desc: "Plan & RSVP", live: true },
-    { to: "/dashboard", icon: BookOpen, title: "Devotionals", desc: "Daily Word", live: false },
+    { to: "/devotionals", icon: BookOpen, title: "Devotionals", desc: "Daily Word", live: true },
     { to: "/dashboard", icon: MessageCircle, title: "Community Chat", desc: "Real-time groups", live: false },
     { to: "/dashboard", icon: HandHeart, title: "Mentorship", desc: "Pair & nurture", live: false },
   ] as const;
