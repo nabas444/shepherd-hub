@@ -3,6 +3,7 @@ import { useEffect, useState, FormEvent } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
+import { OnboardingJourney } from "@/components/OnboardingJourney";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -148,6 +149,20 @@ function MemberProfilePage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Onboarding journey card */}
+        <div
+          className="mt-6 rounded-3xl border border-border bg-card p-8"
+          style={{ boxShadow: "var(--shadow-soft)" }}
+        >
+          <div className="mb-5 flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <h2 className="text-xl font-serif font-semibold">Onboarding journey</h2>
+          </div>
+          <OnboardingJourney userId={profile.id} />
         </div>
 
         {/* Edit form */}
