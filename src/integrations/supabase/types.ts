@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      devotionals: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          publish_date: string
+          scripture_reference: string | null
+          scripture_text: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          publish_date?: string
+          scripture_reference?: string | null
+          scripture_text?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          publish_date?: string
+          scripture_reference?: string | null
+          scripture_text?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_rsvps: {
         Row: {
           created_at: string
