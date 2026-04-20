@@ -92,6 +92,11 @@ function Dashboard() {
           <FollowUpWidget />
         </div>
 
+        {/* Daily Word */}
+        <div className="mb-10">
+          <DailyWordWidget />
+        </div>
+
         {/* Modules */}
         <h2 className="mb-4 text-xl font-serif text-foreground">Modules</h2>
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
