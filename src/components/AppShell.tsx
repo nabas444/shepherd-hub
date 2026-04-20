@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Heart, LogOut, LayoutDashboard, Users } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, Users, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { ReactNode } from "react";
@@ -15,6 +15,7 @@ export function AppShell({ children }: AppShellProps) {
   const nav = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/members", label: "Members", icon: Users },
+    { to: "/events", label: "Events", icon: Calendar },
   ] as const;
 
   return (

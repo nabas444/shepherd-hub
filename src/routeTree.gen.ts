@@ -10,14 +10,21 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MembersRouteImport } from './routes/members'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
+import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 
 const MembersRoute = MembersRouteImport.update({
   id: '/members',
   path: '/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -40,19 +47,28 @@ const MembersMemberIdRoute = MembersMemberIdRouteImport.update({
   path: '/$memberId',
   getParentRoute: () => MembersRoute,
 } as any)
+const EventsEventIdRoute = EventsEventIdRouteImport.update({
+  id: '/$eventId',
+  path: '/$eventId',
+  getParentRoute: () => EventsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
+  '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
+  '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
 export interface FileRoutesById {
@@ -60,20 +76,38 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
+  '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/members' | '/members/$memberId'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/events'
+    | '/members'
+    | '/events/$eventId'
+    | '/members/$memberId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/members' | '/members/$memberId'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/events'
+    | '/members'
+    | '/events/$eventId'
+    | '/members/$memberId'
   id:
     | '__root__'
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/events'
     | '/members'
+    | '/events/$eventId'
     | '/members/$memberId'
   fileRoutesById: FileRoutesById
 }
@@ -81,6 +115,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  EventsRoute: typeof EventsRouteWithChildren
   MembersRoute: typeof MembersRouteWithChildren
 }
 
@@ -91,6 +126,13 @@ declare module '@tanstack/react-router' {
       path: '/members'
       fullPath: '/members'
       preLoaderRoute: typeof MembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -121,8 +163,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MembersMemberIdRouteImport
       parentRoute: typeof MembersRoute
     }
+    '/events/$eventId': {
+      id: '/events/$eventId'
+      path: '/$eventId'
+      fullPath: '/events/$eventId'
+      preLoaderRoute: typeof EventsEventIdRouteImport
+      parentRoute: typeof EventsRoute
+    }
   }
 }
+
+interface EventsRouteChildren {
+  EventsEventIdRoute: typeof EventsEventIdRoute
+}
+
+const EventsRouteChildren: EventsRouteChildren = {
+  EventsEventIdRoute: EventsEventIdRoute,
+}
+
+const EventsRouteWithChildren =
+  EventsRoute._addFileChildren(EventsRouteChildren)
 
 interface MembersRouteChildren {
   MembersMemberIdRoute: typeof MembersMemberIdRoute
@@ -139,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  EventsRoute: EventsRouteWithChildren,
   MembersRoute: MembersRouteWithChildren,
 }
 export const routeTree = rootRouteImport
