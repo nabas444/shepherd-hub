@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Heart, LogOut, LayoutDashboard, Users, Calendar, BookOpen } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, Users, Calendar, BookOpen, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { ReactNode } from "react";
@@ -17,6 +17,7 @@ export function AppShell({ children }: AppShellProps) {
     { to: "/members", label: "Members", icon: Users },
     { to: "/events", label: "Events", icon: Calendar },
     { to: "/devotionals", label: "Devotionals", icon: BookOpen },
+    { to: "/chat", label: "Chat", icon: MessageCircle },
   ] as const;
 
   return (

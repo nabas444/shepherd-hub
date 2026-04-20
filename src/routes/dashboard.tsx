@@ -56,7 +56,7 @@ function Dashboard() {
     { to: "/dashboard", icon: BarChart3, title: "Engagement", desc: "Insights & analytics", live: false },
     { to: "/events", icon: Calendar, title: "Events", desc: "Plan & RSVP", live: true },
     { to: "/devotionals", icon: BookOpen, title: "Devotionals", desc: "Daily Word", live: true },
-    { to: "/dashboard", icon: MessageCircle, title: "Community Chat", desc: "Real-time groups", live: false },
+    { to: "/chat", icon: MessageCircle, title: "Community Chat", desc: "Real-time groups", live: true },
     { to: "/dashboard", icon: HandHeart, title: "Mentorship", desc: "Pair & nurture", live: false },
   ] as const;
 
