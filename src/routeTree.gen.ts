@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MentorshipRouteImport } from './routes/mentorship'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as DevotionalsRouteImport } from './routes/devotionals'
@@ -19,6 +20,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 
+const MentorshipRoute = MentorshipRouteImport.update({
+  id: '/mentorship',
+  path: '/mentorship',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembersRoute = MembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/devotionals': typeof DevotionalsRoute
   '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
+  '/mentorship': typeof MentorshipRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/devotionals': typeof DevotionalsRoute
   '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
+  '/mentorship': typeof MentorshipRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/devotionals': typeof DevotionalsRoute
   '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
+  '/mentorship': typeof MentorshipRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/devotionals'
     | '/events'
     | '/members'
+    | '/mentorship'
     | '/events/$eventId'
     | '/members/$memberId'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/devotionals'
     | '/events'
     | '/members'
+    | '/mentorship'
     | '/events/$eventId'
     | '/members/$memberId'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/devotionals'
     | '/events'
     | '/members'
+    | '/mentorship'
     | '/events/$eventId'
     | '/members/$memberId'
   fileRoutesById: FileRoutesById
@@ -143,10 +155,18 @@ export interface RootRouteChildren {
   DevotionalsRoute: typeof DevotionalsRoute
   EventsRoute: typeof EventsRouteWithChildren
   MembersRoute: typeof MembersRouteWithChildren
+  MentorshipRoute: typeof MentorshipRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/mentorship': {
+      id: '/mentorship'
+      path: '/mentorship'
+      fullPath: '/mentorship'
+      preLoaderRoute: typeof MentorshipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members': {
       id: '/members'
       path: '/members'
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   DevotionalsRoute: DevotionalsRoute,
   EventsRoute: EventsRouteWithChildren,
   MembersRoute: MembersRouteWithChildren,
+  MentorshipRoute: MentorshipRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
