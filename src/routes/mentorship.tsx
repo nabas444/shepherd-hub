@@ -123,8 +123,9 @@ function MentorshipPage() {
   };
 
   const updateStatus = async (id: string, status: string) => {
-    const patch: Record<string, unknown> = { status };
-    if (status === "completed") patch.ended_at = new Date().toISOString().slice(0, 10);
+    const patch = status === "completed"
+      ? { status, ended_at: new Date().toISOString().slice(0, 10) }
+      : { status, ended_at: null };
     const { error } = await supabase.from("mentorships").update(patch).eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Updated");
