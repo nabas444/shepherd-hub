@@ -469,6 +469,49 @@ function NewChannelDialog({
   onClose: () => void;
   onCreated: (c: Channel) => void;
 }) {
+  // moved below
+  return <NewChannelDialogImpl onClose={onClose} onCreated={onCreated} />;
+}
+
+function Attachment({ url, type, name }: { url: string; type: string; name: string }) {
+  if (type.startsWith("image/")) {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="mt-2 block">
+        <img
+          src={url}
+          alt={name}
+          className="max-h-80 max-w-sm rounded-md border border-border object-cover"
+          loading="lazy"
+        />
+      </a>
+    );
+  }
+  if (type.startsWith("video/")) {
+    return (
+      <video src={url} controls className="mt-2 max-h-80 max-w-sm rounded-md border border-border" />
+    );
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-2 inline-flex max-w-sm items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm hover:bg-secondary/70"
+    >
+      <FileText className="h-4 w-4 text-primary" />
+      <span className="truncate">{name}</span>
+      <Download className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+    </a>
+  );
+}
+
+function NewChannelDialogImpl({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (c: Channel) => void;
+}) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
