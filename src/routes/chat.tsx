@@ -93,7 +93,7 @@ function ChatPage() {
     (async () => {
       const { data } = await supabase
         .from("chat_messages")
-        .select("id,channel_id,user_id,body,created_at")
+        .select("id,channel_id,user_id,body,created_at,edited_at,attachment_url,attachment_type,attachment_name")
         .eq("channel_id", activeId)
         .order("created_at", { ascending: true })
         .limit(200);
@@ -115,6 +115,14 @@ function ChatPage() {
           setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
           await hydrateProfiles([msg.user_id]);
           requestAnimationFrame(() => scrollToBottom());
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_messages", filter: `channel_id=eq.${activeId}` },
+        (payload) => {
+          const msg = payload.new as Message;
+          setMessages((prev) => prev.map((m) => (m.id === msg.id ? msg : m)));
         },
       )
       .on(
