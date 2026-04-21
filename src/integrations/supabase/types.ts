@@ -186,6 +186,80 @@ export type Database = {
         }
         Relationships: []
       }
+      mentorship_notes: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          mentorship_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          mentorship_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          mentorship_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentorship_notes_mentorship_id_fkey"
+            columns: ["mentorship_id"]
+            isOneToOne: false
+            referencedRelation: "mentorships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentorships: {
+        Row: {
+          created_at: string
+          created_by: string
+          ended_at: string | null
+          focus: string | null
+          id: string
+          mentee_id: string
+          mentor_id: string
+          started_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          ended_at?: string | null
+          focus?: string | null
+          id?: string
+          mentee_id: string
+          mentor_id: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          ended_at?: string | null
+          focus?: string | null
+          id?: string
+          mentee_id?: string
+          mentor_id?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       onboarding_steps: {
         Row: {
           completed: boolean
