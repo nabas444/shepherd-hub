@@ -40,25 +40,37 @@ export type Database = {
       }
       chat_messages: {
         Row: {
-          body: string
+          attachment_name: string | null
+          attachment_type: string | null
+          attachment_url: string | null
+          body: string | null
           channel_id: string
           created_at: string
+          edited_at: string | null
           id: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          body: string
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
+          body?: string | null
           channel_id: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          body?: string
+          attachment_name?: string | null
+          attachment_type?: string | null
+          attachment_url?: string | null
+          body?: string | null
           channel_id?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           updated_at?: string
           user_id?: string
