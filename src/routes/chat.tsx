@@ -165,23 +165,78 @@ function ChatPage() {
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !activeId || !draft.trim()) return;
+    if (!user || !activeId) return;
     const body = draft.trim().slice(0, 2000);
+    if (!body && !pendingFile) return;
+
+    let attachment_url: string | null = null;
+    let attachment_type: string | null = null;
+    let attachment_name: string | null = null;
+
+    if (pendingFile) {
+      if (pendingFile.size > 25 * 1024 * 1024) {
+        toast.error("File too large (max 25MB)");
+        return;
+      }
+      setUploading(true);
+      const ext = pendingFile.name.split(".").pop() || "bin";
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("chat-attachments")
+        .upload(path, pendingFile, { contentType: pendingFile.type, upsert: false });
+      if (upErr) {
+        setUploading(false);
+        toast.error(upErr.message);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("chat-attachments").getPublicUrl(path);
+      attachment_url = pub.publicUrl;
+      attachment_type = pendingFile.type || "application/octet-stream";
+      attachment_name = pendingFile.name;
+      setUploading(false);
+    }
+
     setDraft("");
+    const file = pendingFile;
+    setPendingFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
     const { error } = await supabase.from("chat_messages").insert({
       channel_id: activeId,
       user_id: user.id,
-      body,
+      body: body || null,
+      attachment_url,
+      attachment_type,
+      attachment_name,
     });
     if (error) {
       toast.error(error.message);
       setDraft(body);
+      setPendingFile(file);
     }
   };
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("chat_messages").delete().eq("id", id);
     if (error) toast.error(error.message);
+  };
+
+  const startEdit = (m: Message) => {
+    setEditingId(m.id);
+    setEditingDraft(m.body ?? "");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const body = editingDraft.trim().slice(0, 2000);
+    if (!body) return toast.error("Message cannot be empty");
+    const { error } = await supabase
+      .from("chat_messages")
+      .update({ body })
+      .eq("id", editingId);
+    if (error) return toast.error(error.message);
+    setEditingId(null);
+    setEditingDraft("");
   };
 
   if (loading || !user) {
