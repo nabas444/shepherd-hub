@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Hash, Send, Trash2, Plus } from "lucide-react";
+import { Hash, Send, Trash2, Plus, Paperclip, X, Pencil, Check, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -32,8 +32,12 @@ interface Message {
   id: string;
   channel_id: string;
   user_id: string;
-  body: string;
+  body: string | null;
   created_at: string;
+  edited_at?: string | null;
+  attachment_url?: string | null;
+  attachment_type?: string | null;
+  attachment_name?: string | null;
 }
 
 interface ProfileLite {
@@ -51,6 +55,11 @@ function ChatPage() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(true);
   const [openNewChannel, setOpenNewChannel] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = roles.includes("admin");
@@ -84,7 +93,7 @@ function ChatPage() {
     (async () => {
       const { data } = await supabase
         .from("chat_messages")
-        .select("id,channel_id,user_id,body,created_at")
+        .select("id,channel_id,user_id,body,created_at,edited_at,attachment_url,attachment_type,attachment_name")
         .eq("channel_id", activeId)
         .order("created_at", { ascending: true })
         .limit(200);
@@ -106,6 +115,14 @@ function ChatPage() {
           setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
           await hydrateProfiles([msg.user_id]);
           requestAnimationFrame(() => scrollToBottom());
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_messages", filter: `channel_id=eq.${activeId}` },
+        (payload) => {
+          const msg = payload.new as Message;
+          setMessages((prev) => prev.map((m) => (m.id === msg.id ? msg : m)));
         },
       )
       .on(
@@ -148,23 +165,78 @@ function ChatPage() {
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !activeId || !draft.trim()) return;
+    if (!user || !activeId) return;
     const body = draft.trim().slice(0, 2000);
+    if (!body && !pendingFile) return;
+
+    let attachment_url: string | null = null;
+    let attachment_type: string | null = null;
+    let attachment_name: string | null = null;
+
+    if (pendingFile) {
+      if (pendingFile.size > 25 * 1024 * 1024) {
+        toast.error("File too large (max 25MB)");
+        return;
+      }
+      setUploading(true);
+      const ext = pendingFile.name.split(".").pop() || "bin";
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("chat-attachments")
+        .upload(path, pendingFile, { contentType: pendingFile.type, upsert: false });
+      if (upErr) {
+        setUploading(false);
+        toast.error(upErr.message);
+        return;
+      }
+      const { data: pub } = supabase.storage.from("chat-attachments").getPublicUrl(path);
+      attachment_url = pub.publicUrl;
+      attachment_type = pendingFile.type || "application/octet-stream";
+      attachment_name = pendingFile.name;
+      setUploading(false);
+    }
+
     setDraft("");
+    const file = pendingFile;
+    setPendingFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
     const { error } = await supabase.from("chat_messages").insert({
       channel_id: activeId,
       user_id: user.id,
-      body,
+      body: body || null,
+      attachment_url,
+      attachment_type,
+      attachment_name,
     });
     if (error) {
       toast.error(error.message);
       setDraft(body);
+      setPendingFile(file);
     }
   };
 
   const remove = async (id: string) => {
     const { error } = await supabase.from("chat_messages").delete().eq("id", id);
     if (error) toast.error(error.message);
+  };
+
+  const startEdit = (m: Message) => {
+    setEditingId(m.id);
+    setEditingDraft(m.body ?? "");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const body = editingDraft.trim().slice(0, 2000);
+    if (!body) return toast.error("Message cannot be empty");
+    const { error } = await supabase
+      .from("chat_messages")
+      .update({ body })
+      .eq("id", editingId);
+    if (error) return toast.error(error.message);
+    setEditingId(null);
+    setEditingDraft("");
   };
 
   if (loading || !user) {
@@ -257,6 +329,7 @@ function ChatPage() {
                   const author = profiles[m.user_id]?.full_name || "Member";
                   const mine = m.user_id === user.id;
                   const canDelete = mine || isLeader;
+                  const isEditing = editingId === m.id;
                   return (
                     <div key={m.id} className="group flex gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
@@ -271,17 +344,54 @@ function ChatPage() {
                               minute: "2-digit",
                             })}
                           </span>
-                          {canDelete && (
-                            <button
-                              onClick={() => remove(m.id)}
-                              className="ml-auto opacity-0 transition group-hover:opacity-100"
-                              aria-label="Delete message"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                            </button>
+                          {m.edited_at && (
+                            <span className="text-[10px] italic text-muted-foreground">(edited)</span>
                           )}
+                          <div className="ml-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
+                            {mine && !isEditing && m.body && (
+                              <button onClick={() => startEdit(m)} aria-label="Edit message">
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                              </button>
+                            )}
+                            {canDelete && !isEditing && (
+                              <button onClick={() => remove(m.id)} aria-label="Delete message">
+                                <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="whitespace-pre-wrap break-words text-foreground/90">{m.body}</p>
+                        {isEditing ? (
+                          <div className="mt-1 flex gap-2">
+                            <Input
+                              value={editingDraft}
+                              onChange={(e) => setEditingDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEdit();
+                                if (e.key === "Escape") setEditingId(null);
+                              }}
+                              autoFocus
+                            />
+                            <Button size="sm" onClick={saveEdit}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            {m.body && (
+                              <p className="whitespace-pre-wrap break-words text-foreground/90">{m.body}</p>
+                            )}
+                            {m.attachment_url && (
+                              <Attachment
+                                url={m.attachment_url}
+                                type={m.attachment_type ?? ""}
+                                name={m.attachment_name ?? "file"}
+                              />
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -289,17 +399,61 @@ function ChatPage() {
               )}
             </div>
 
-            <form onSubmit={send} className="flex gap-2 border-t border-border bg-background/40 p-3">
-              <Input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder={active ? `Message #${active.name}` : "Select a channel…"}
-                disabled={!active}
-                maxLength={2000}
-              />
-              <Button type="submit" disabled={!active || !draft.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
+            <form onSubmit={send} className="flex flex-col gap-2 border-t border-border bg-background/40 p-3">
+              {pendingFile && (
+                <div className="flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-xs">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  <span className="truncate">{pendingFile.name}</span>
+                  <span className="text-muted-foreground">
+                    ({(pendingFile.size / 1024).toFixed(0)} KB)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="ml-auto"
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,video/*,application/pdf,.doc,.docx,.txt,.zip"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setPendingFile(f);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={!active || uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach file"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+                <Input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={active ? `Message #${active.name}` : "Select a channel…"}
+                  disabled={!active}
+                  maxLength={2000}
+                />
+                <Button
+                  type="submit"
+                  disabled={!active || uploading || (!draft.trim() && !pendingFile)}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </form>
           </section>
         </div>
@@ -309,6 +463,49 @@ function ChatPage() {
 }
 
 function NewChannelDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (c: Channel) => void;
+}) {
+  // moved below
+  return <NewChannelDialogImpl onClose={onClose} onCreated={onCreated} />;
+}
+
+function Attachment({ url, type, name }: { url: string; type: string; name: string }) {
+  if (type.startsWith("image/")) {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" className="mt-2 block">
+        <img
+          src={url}
+          alt={name}
+          className="max-h-80 max-w-sm rounded-md border border-border object-cover"
+          loading="lazy"
+        />
+      </a>
+    );
+  }
+  if (type.startsWith("video/")) {
+    return (
+      <video src={url} controls className="mt-2 max-h-80 max-w-sm rounded-md border border-border" />
+    );
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="mt-2 inline-flex max-w-sm items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2 text-sm hover:bg-secondary/70"
+    >
+      <FileText className="h-4 w-4 text-primary" />
+      <span className="truncate">{name}</span>
+      <Download className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+    </a>
+  );
+}
+
+function NewChannelDialogImpl({
   onClose,
   onCreated,
 }: {
