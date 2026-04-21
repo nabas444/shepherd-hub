@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Heart, LogOut, LayoutDashboard, Users, Calendar, BookOpen, MessageCircle, HandHeart } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, Users, Calendar, BookOpen, MessageCircle, HandHeart, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { ReactNode } from "react";
@@ -9,7 +9,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const { user, signOut, roles } = useAuth();
+  const { user, signOut, roles, isAdmin } = useAuth();
   const location = useLocation();
 
   const nav = [
@@ -19,6 +19,7 @@ export function AppShell({ children }: AppShellProps) {
     { to: "/devotionals", label: "Devotionals", icon: BookOpen },
     { to: "/chat", label: "Chat", icon: MessageCircle },
     { to: "/mentorship", label: "Mentorship", icon: HandHeart },
+    ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Shield } as const] : []),
   ] as const;
 
   return (
