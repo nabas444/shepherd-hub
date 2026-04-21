@@ -6,7 +6,8 @@ import { AppShell } from "@/components/AppShell";
 import { FollowUpWidget } from "@/components/FollowUpWidget";
 import { OnboardingJourney } from "@/components/OnboardingJourney";
 import { DailyWordWidget } from "@/components/DailyWordWidget";
-import { Users, Calendar, BookOpen, MessageCircle, BarChart3, HandHeart, Sparkles } from "lucide-react";
+import { Users, Calendar, BookOpen, MessageCircle, BarChart3, HandHeart, Sparkles, Shield } from "lucide-react";
+import { PageLoader } from "@/components/PageLoader";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Shepherd Hub" }] }),
@@ -20,7 +21,7 @@ interface Stats {
 }
 
 function Dashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<Stats>({ total: 0, newCount: 0, active: 0 });
 
@@ -43,26 +44,21 @@ function Dashboard() {
       });
   }, [user]);
 
-  if (loading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading…</div>
-      </div>
-    );
-  }
+  if (loading || !user) return <PageLoader />;
 
   const modules = [
     { to: "/members", icon: Users, title: "Members", desc: "Manage your fellowship", live: true },
-    { to: "/dashboard", icon: BarChart3, title: "Engagement", desc: "Insights & analytics", live: false },
+    { to: "/admin", icon: BarChart3, title: "Engagement", desc: "Insights & analytics", live: isAdmin },
     { to: "/events", icon: Calendar, title: "Events", desc: "Plan & RSVP", live: true },
     { to: "/devotionals", icon: BookOpen, title: "Devotionals", desc: "Daily Word", live: true },
     { to: "/chat", icon: MessageCircle, title: "Community Chat", desc: "Real-time groups", live: true },
     { to: "/mentorship", icon: HandHeart, title: "Mentorship", desc: "Pair & nurture", live: true },
+    ...(isAdmin ? [{ to: "/admin", icon: Shield, title: "Admin", desc: "Roles & insights", live: true } as const] : []),
   ] as const;
 
   return (
     <AppShell>
-      <div className="container mx-auto px-6 py-10">
+      <div className="container mx-auto px-6 py-10 animate-fade-in">
         <div className="mb-10">
           <h1 className="text-4xl font-serif text-foreground md:text-5xl">Peace be with you</h1>
           <p className="mt-2 text-muted-foreground">Here's a glance at your fellowship today.</p>
