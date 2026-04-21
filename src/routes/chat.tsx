@@ -329,6 +329,7 @@ function ChatPage() {
                   const author = profiles[m.user_id]?.full_name || "Member";
                   const mine = m.user_id === user.id;
                   const canDelete = mine || isLeader;
+                  const isEditing = editingId === m.id;
                   return (
                     <div key={m.id} className="group flex gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
@@ -343,17 +344,54 @@ function ChatPage() {
                               minute: "2-digit",
                             })}
                           </span>
-                          {canDelete && (
-                            <button
-                              onClick={() => remove(m.id)}
-                              className="ml-auto opacity-0 transition group-hover:opacity-100"
-                              aria-label="Delete message"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                            </button>
+                          {m.edited_at && (
+                            <span className="text-[10px] italic text-muted-foreground">(edited)</span>
                           )}
+                          <div className="ml-auto flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
+                            {mine && !isEditing && m.body && (
+                              <button onClick={() => startEdit(m)} aria-label="Edit message">
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                              </button>
+                            )}
+                            {canDelete && !isEditing && (
+                              <button onClick={() => remove(m.id)} aria-label="Delete message">
+                                <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="whitespace-pre-wrap break-words text-foreground/90">{m.body}</p>
+                        {isEditing ? (
+                          <div className="mt-1 flex gap-2">
+                            <Input
+                              value={editingDraft}
+                              onChange={(e) => setEditingDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEdit();
+                                if (e.key === "Escape") setEditingId(null);
+                              }}
+                              autoFocus
+                            />
+                            <Button size="sm" onClick={saveEdit}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            {m.body && (
+                              <p className="whitespace-pre-wrap break-words text-foreground/90">{m.body}</p>
+                            )}
+                            {m.attachment_url && (
+                              <Attachment
+                                url={m.attachment_url}
+                                type={m.attachment_type ?? ""}
+                                name={m.attachment_name ?? "file"}
+                              />
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -361,17 +399,61 @@ function ChatPage() {
               )}
             </div>
 
-            <form onSubmit={send} className="flex gap-2 border-t border-border bg-background/40 p-3">
-              <Input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder={active ? `Message #${active.name}` : "Select a channel…"}
-                disabled={!active}
-                maxLength={2000}
-              />
-              <Button type="submit" disabled={!active || !draft.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
+            <form onSubmit={send} className="flex flex-col gap-2 border-t border-border bg-background/40 p-3">
+              {pendingFile && (
+                <div className="flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-xs">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  <span className="truncate">{pendingFile.name}</span>
+                  <span className="text-muted-foreground">
+                    ({(pendingFile.size / 1024).toFixed(0)} KB)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="ml-auto"
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,video/*,application/pdf,.doc,.docx,.txt,.zip"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setPendingFile(f);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={!active || uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach file"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+                <Input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={active ? `Message #${active.name}` : "Select a channel…"}
+                  disabled={!active}
+                  maxLength={2000}
+                />
+                <Button
+                  type="submit"
+                  disabled={!active || uploading || (!draft.trim() && !pendingFile)}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </form>
           </section>
         </div>
