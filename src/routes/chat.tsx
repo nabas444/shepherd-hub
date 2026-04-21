@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Hash, Send, Trash2, Plus } from "lucide-react";
+import { Hash, Send, Trash2, Plus, Paperclip, X, Pencil, Check, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -32,8 +32,12 @@ interface Message {
   id: string;
   channel_id: string;
   user_id: string;
-  body: string;
+  body: string | null;
   created_at: string;
+  edited_at?: string | null;
+  attachment_url?: string | null;
+  attachment_type?: string | null;
+  attachment_name?: string | null;
 }
 
 interface ProfileLite {
@@ -51,6 +55,11 @@ function ChatPage() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(true);
   const [openNewChannel, setOpenNewChannel] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = roles.includes("admin");
