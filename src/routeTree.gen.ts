@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MentorshipRouteImport } from './routes/mentorship'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as EventsRouteImport } from './routes/events'
@@ -21,6 +22,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MembersMemberIdRouteImport } from './routes/members.$memberId'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MentorshipRoute = MentorshipRouteImport.update({
   id: '/mentorship',
   path: '/mentorship',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
   '/mentorship': typeof MentorshipRoute
+  '/profile': typeof ProfileRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
   '/mentorship': typeof MentorshipRoute
+  '/profile': typeof ProfileRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRouteWithChildren
   '/members': typeof MembersRouteWithChildren
   '/mentorship': typeof MentorshipRoute
+  '/profile': typeof ProfileRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/members/$memberId': typeof MembersMemberIdRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/members'
     | '/mentorship'
+    | '/profile'
     | '/events/$eventId'
     | '/members/$memberId'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/members'
     | '/mentorship'
+    | '/profile'
     | '/events/$eventId'
     | '/members/$memberId'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/members'
     | '/mentorship'
+    | '/profile'
     | '/events/$eventId'
     | '/members/$memberId'
   fileRoutesById: FileRoutesById
@@ -169,10 +181,18 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRouteWithChildren
   MembersRoute: typeof MembersRouteWithChildren
   MentorshipRoute: typeof MentorshipRoute
+  ProfileRoute: typeof ProfileRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mentorship': {
       id: '/mentorship'
       path: '/mentorship'
@@ -285,7 +305,17 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRouteWithChildren,
   MembersRoute: MembersRouteWithChildren,
   MentorshipRoute: MentorshipRoute,
+  ProfileRoute: ProfileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import {
   Users, Calendar, MessageCircle, BookOpen, HandHeart, Shield,
-  Search, Sparkles, TrendingUp,
+  Search, Sparkles, TrendingUp, History,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,6 +34,15 @@ interface MemberRow {
 }
 
 interface RoleRow { user_id: string; role: AppRole }
+
+interface AuditEntry {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  target_user_id: string | null;
+  details: { role?: string } | null;
+  created_at: string;
+}
 
 interface Counts {
   members: number;
@@ -61,6 +70,7 @@ function AdminPage() {
   const [rolesByUser, setRolesByUser] = useState<Record<string, AppRole[]>>({});
   const [query, setQuery] = useState("");
   const [recentSignups, setRecentSignups] = useState<MemberRow[]>([]);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -72,6 +82,7 @@ function AdminPage() {
     const todayIso = new Date().toISOString();
     const [
       profilesRes, rolesRes, eventsRes, upcomingRes, msgsRes, devsRes, mentRes, activeMentRes, recentRes,
+      auditRes,
     ] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email, status, join_date, last_activity_date, ministry"),
       supabase.from("user_roles").select("user_id, role"),
@@ -82,11 +93,13 @@ function AdminPage() {
       supabase.from("mentorships").select("id", { count: "exact", head: true }),
       supabase.from("mentorships").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("profiles").select("id, full_name, email, status, join_date, last_activity_date, ministry").order("join_date", { ascending: false }).limit(5),
+      supabase.from("audit_log").select("id, actor_id, action, target_user_id, details, created_at").order("created_at", { ascending: false }).limit(15),
     ]);
 
     const allMembers = (profilesRes.data ?? []) as MemberRow[];
     setMembers(allMembers);
     setRecentSignups((recentRes.data ?? []) as MemberRow[]);
+    setAudit((auditRes.data ?? []) as AuditEntry[]);
 
     const byUser: Record<string, AppRole[]> = {};
     ((rolesRes.data ?? []) as RoleRow[]).forEach((r) => {
@@ -300,6 +313,46 @@ function AdminPage() {
               </table>
               <p className="mt-3 text-xs text-muted-foreground">You can't change your own role.</p>
             </div>
+          )}
+        </section>
+
+        {/* Audit log */}
+        <section
+          className="mt-8 rounded-2xl border border-border bg-card p-6"
+          style={{ boxShadow: "var(--shadow-soft)" }}
+        >
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <History className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="font-serif text-2xl font-semibold">Recent activity</h2>
+              <p className="text-sm text-muted-foreground">Role assignments and removals.</p>
+            </div>
+          </div>
+          {audit.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No activity yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {audit.map((a) => {
+                const actor = a.actor_id ? (members.find((m) => m.id === a.actor_id)?.full_name ?? "An admin") : "System";
+                const target = a.target_user_id ? (members.find((m) => m.id === a.target_user_id)?.full_name ?? "a member") : "—";
+                const verb = a.action === "role.assigned" ? "assigned" : "removed";
+                const role = a.details?.role ?? "role";
+                return (
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="text-sm">
+                      <span className="font-medium text-foreground">{actor}</span>{" "}
+                      <span className="text-muted-foreground">{verb}</span>{" "}
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{role}</span>{" "}
+                      <span className="text-muted-foreground">to</span>{" "}
+                      <span className="font-medium text-foreground">{target}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</span>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
       </div>
