@@ -235,7 +235,19 @@ function MentorshipPage() {
                     placeholder="What did you discuss? Prayer points, next steps…"
                     rows={3}
                   />
-                  <div className="flex justify-end">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="meeting-date" className="text-xs text-muted-foreground">
+                        Meeting date
+                      </Label>
+                      <Input
+                        id="meeting-date"
+                        type="date"
+                        value={noteDate}
+                        onChange={(e) => setNoteDate(e.target.value)}
+                        className="h-8 w-[160px]"
+                      />
+                    </div>
                     <Button onClick={addNote} disabled={busy || !noteBody.trim()}>
                       Add note
                     </Button>
