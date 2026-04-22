@@ -55,6 +55,7 @@ function MentorshipPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteBody, setNoteBody] = useState("");
+  const [noteDate, setNoteDate] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -108,13 +109,19 @@ function MentorshipPage() {
     setBusy(true);
     const { error, data } = await supabase
       .from("mentorship_notes")
-      .insert({ mentorship_id: activeId, author_id: user.id, body: noteBody.trim() })
+      .insert({
+        mentorship_id: activeId,
+        author_id: user.id,
+        body: noteBody.trim(),
+        meeting_date: noteDate || null,
+      })
       .select()
       .single();
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     setNotes((n) => [data as Note, ...n]);
     setNoteBody("");
+    setNoteDate("");
   };
 
   const deleteNote = async (id: string) => {
