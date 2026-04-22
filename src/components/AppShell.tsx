@@ -1,8 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Heart, LogOut, LayoutDashboard, Users, Calendar, BookOpen, MessageCircle, HandHeart, Shield } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, Users, Calendar, BookOpen, MessageCircle, HandHeart, Shield, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { ReactNode } from "react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 interface AppShellProps {
   children: ReactNode;
@@ -51,13 +52,19 @@ export function AppShell({ children }: AppShellProps) {
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {user?.email}
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <Link
+              to="/profile"
+              className="hidden items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground sm:inline-flex"
+              title="Your profile"
+            >
+              <UserCircle className="h-4 w-4" />
+              <span className="max-w-[160px] truncate">{user?.email}</span>
               {roles.length > 0 && (
-                <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{roles[0]}</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{roles[0]}</span>
               )}
-            </span>
+            </Link>
             <Button variant="ghost" size="sm" onClick={() => signOut()}>
               <LogOut className="mr-2 h-4 w-4" /> Sign out
             </Button>
