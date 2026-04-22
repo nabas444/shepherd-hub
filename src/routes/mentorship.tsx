@@ -44,6 +44,7 @@ interface Note {
   author_id: string;
   body: string;
   created_at: string;
+  meeting_date: string | null;
 }
 
 function MentorshipPage() {
