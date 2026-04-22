@@ -264,6 +264,9 @@ function MentorshipPage() {
                           <span>
                             {profiles[n.author_id]?.full_name || "Member"} ·{" "}
                             {new Date(n.created_at).toLocaleString()}
+                            {n.meeting_date && (
+                              <> · 📅 met {new Date(n.meeting_date).toLocaleDateString()}</>
+                            )}
                           </span>
                           {n.author_id === user.id && (
                             <Button variant="ghost" size="icon" className="h-6 w-6"
