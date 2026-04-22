@@ -44,6 +44,7 @@ interface Note {
   author_id: string;
   body: string;
   created_at: string;
+  meeting_date: string | null;
 }
 
 function MentorshipPage() {
@@ -54,6 +55,7 @@ function MentorshipPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [noteBody, setNoteBody] = useState("");
+  const [noteDate, setNoteDate] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -107,13 +109,19 @@ function MentorshipPage() {
     setBusy(true);
     const { error, data } = await supabase
       .from("mentorship_notes")
-      .insert({ mentorship_id: activeId, author_id: user.id, body: noteBody.trim() })
+      .insert({
+        mentorship_id: activeId,
+        author_id: user.id,
+        body: noteBody.trim(),
+        meeting_date: noteDate || null,
+      })
       .select()
       .single();
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     setNotes((n) => [data as Note, ...n]);
     setNoteBody("");
+    setNoteDate("");
   };
 
   const deleteNote = async (id: string) => {
@@ -227,7 +235,19 @@ function MentorshipPage() {
                     placeholder="What did you discuss? Prayer points, next steps…"
                     rows={3}
                   />
-                  <div className="flex justify-end">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="meeting-date" className="text-xs text-muted-foreground">
+                        Meeting date
+                      </Label>
+                      <Input
+                        id="meeting-date"
+                        type="date"
+                        value={noteDate}
+                        onChange={(e) => setNoteDate(e.target.value)}
+                        className="h-8 w-[160px]"
+                      />
+                    </div>
                     <Button onClick={addNote} disabled={busy || !noteBody.trim()}>
                       Add note
                     </Button>
@@ -244,6 +264,9 @@ function MentorshipPage() {
                           <span>
                             {profiles[n.author_id]?.full_name || "Member"} ·{" "}
                             {new Date(n.created_at).toLocaleString()}
+                            {n.meeting_date && (
+                              <> · 📅 met {new Date(n.meeting_date).toLocaleDateString()}</>
+                            )}
                           </span>
                           {n.author_id === user.id && (
                             <Button variant="ghost" size="icon" className="h-6 w-6"

@@ -1,0 +1,1 @@
+ALTER TABLE public.mentorship_notes ADD COLUMN meeting_date date;
