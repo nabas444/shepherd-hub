@@ -173,5 +173,3 @@ function timeAgo(iso: string): string {
   if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
   return new Date(iso).toLocaleDateString();
 }
-
-function _silence() { toast; }
