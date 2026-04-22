@@ -315,6 +315,46 @@ function AdminPage() {
             </div>
           )}
         </section>
+
+        {/* Audit log */}
+        <section
+          className="mt-8 rounded-2xl border border-border bg-card p-6"
+          style={{ boxShadow: "var(--shadow-soft)" }}
+        >
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <History className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="font-serif text-2xl font-semibold">Recent activity</h2>
+              <p className="text-sm text-muted-foreground">Role assignments and removals.</p>
+            </div>
+          </div>
+          {audit.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No activity yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {audit.map((a) => {
+                const actor = a.actor_id ? (members.find((m) => m.id === a.actor_id)?.full_name ?? "An admin") : "System";
+                const target = a.target_user_id ? (members.find((m) => m.id === a.target_user_id)?.full_name ?? "a member") : "—";
+                const verb = a.action === "role.assigned" ? "assigned" : "removed";
+                const role = a.details?.role ?? "role";
+                return (
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="text-sm">
+                      <span className="font-medium text-foreground">{actor}</span>{" "}
+                      <span className="text-muted-foreground">{verb}</span>{" "}
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{role}</span>{" "}
+                      <span className="text-muted-foreground">to</span>{" "}
+                      <span className="font-medium text-foreground">{target}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </div>
     </AppShell>
   );
