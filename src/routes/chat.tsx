@@ -483,29 +483,31 @@ function ChatPage() {
               )}
             </div>
             <ul className="px-2 pb-3">
-              {channels.map((c) => {
-                const count = unread[c.id] ?? 0;
-                return (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => setActiveId(c.id)}
-                      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition ${
-                        activeId === c.id
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground/80 hover:bg-secondary"
-                      }`}
-                    >
-                      <Hash className="h-3.5 w-3.5" />
-                      <span className="flex-1 truncate text-left">{c.name}</span>
-                      {count > 0 && activeId !== c.id && (
-                        <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                          {count > 99 ? "99+" : count}
-                        </span>
-                      )}
-                    </button>
+              {generalChannels.map((c) => (
+                <ChannelButton
+                  key={c.id}
+                  channel={c}
+                  active={activeId === c.id}
+                  count={unread[c.id] ?? 0}
+                  onClick={() => setActiveId(c.id)}
+                />
+              ))}
+              {leaderChannels.length > 0 && (
+                <>
+                  <li className="mt-3 flex items-center gap-1.5 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Lock className="h-3 w-3" /> Leaders
                   </li>
-                );
-              })}
+                  {leaderChannels.map((c) => (
+                    <ChannelButton
+                      key={c.id}
+                      channel={c}
+                      active={activeId === c.id}
+                      count={unread[c.id] ?? 0}
+                      onClick={() => setActiveId(c.id)}
+                    />
+                  ))}
+                </>
+              )}
             </ul>
           </aside>
 
