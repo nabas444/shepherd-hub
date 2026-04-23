@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Hash, Send, Trash2, Plus, Paperclip, X, Pencil, Check, FileText, Download, Smile, MessageSquare, CornerDownRight } from "lucide-react";
+import { Hash, Send, Trash2, Plus, Paperclip, X, Pencil, Check, FileText, Download, Smile, MessageSquare, CornerDownRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -106,7 +106,7 @@ function ChatPage() {
     if (!user) return;
     (async () => {
       const [{ data: chs }, { data: reads }] = await Promise.all([
-        supabase.from("chat_channels").select("id,name,description").order("name"),
+        supabase.from("chat_channels").select("id,name,description,leader_only").order("name"),
         supabase.from("chat_reads").select("channel_id,last_read_at").eq("user_id", user.id),
       ]);
       const list = (chs ?? []) as Channel[];
@@ -425,6 +425,14 @@ function ChatPage() {
       .slice(0, 6);
   }, [mentionQuery, allProfiles]);
 
+  const repliesByParent = useMemo(() => {
+    const map: Record<string, Message[]> = {};
+    messages.forEach((m) => {
+      if (m.parent_id) (map[m.parent_id] ||= []).push(m);
+    });
+    return map;
+  }, [messages]);
+
   if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -435,18 +443,9 @@ function ChatPage() {
 
   const active = channels.find((c) => c.id === activeId) ?? null;
   const topLevel = messages.filter((m) => !m.parent_id);
-  const repliesByParent = useMemo(() => {
-    const map: Record<string, Message[]> = {};
-    messages.forEach((m) => {
-      if (m.parent_id) {
-        (map[m.parent_id] ||= []).push(m);
-      }
-    });
-    return map;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages]);
-
   const threadReplies = threadOf ? repliesByParent[threadOf.id] ?? [] : [];
+  const generalChannels = channels.filter((c) => !c.leader_only);
+  const leaderChannels = channels.filter((c) => c.leader_only);
 
   return (
     <AppShell>
