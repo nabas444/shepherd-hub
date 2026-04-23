@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Hash, Send, Trash2, Plus, Paperclip, X, Pencil, Check, FileText, Download, Smile, MessageSquare, CornerDownRight } from "lucide-react";
+import { Hash, Send, Trash2, Plus, Paperclip, X, Pencil, Check, FileText, Download, Smile, MessageSquare, CornerDownRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -27,6 +27,7 @@ interface Channel {
   id: string;
   name: string;
   description: string | null;
+  leader_only?: boolean;
 }
 
 interface Message {
@@ -105,7 +106,7 @@ function ChatPage() {
     if (!user) return;
     (async () => {
       const [{ data: chs }, { data: reads }] = await Promise.all([
-        supabase.from("chat_channels").select("id,name,description").order("name"),
+        supabase.from("chat_channels").select("id,name,description,leader_only").order("name"),
         supabase.from("chat_reads").select("channel_id,last_read_at").eq("user_id", user.id),
       ]);
       const list = (chs ?? []) as Channel[];
@@ -424,6 +425,14 @@ function ChatPage() {
       .slice(0, 6);
   }, [mentionQuery, allProfiles]);
 
+  const repliesByParent = useMemo(() => {
+    const map: Record<string, Message[]> = {};
+    messages.forEach((m) => {
+      if (m.parent_id) (map[m.parent_id] ||= []).push(m);
+    });
+    return map;
+  }, [messages]);
+
   if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -434,18 +443,9 @@ function ChatPage() {
 
   const active = channels.find((c) => c.id === activeId) ?? null;
   const topLevel = messages.filter((m) => !m.parent_id);
-  const repliesByParent = useMemo(() => {
-    const map: Record<string, Message[]> = {};
-    messages.forEach((m) => {
-      if (m.parent_id) {
-        (map[m.parent_id] ||= []).push(m);
-      }
-    });
-    return map;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages]);
-
   const threadReplies = threadOf ? repliesByParent[threadOf.id] ?? [] : [];
+  const generalChannels = channels.filter((c) => !c.leader_only);
+  const leaderChannels = channels.filter((c) => c.leader_only);
 
   return (
     <AppShell>
@@ -483,29 +483,31 @@ function ChatPage() {
               )}
             </div>
             <ul className="px-2 pb-3">
-              {channels.map((c) => {
-                const count = unread[c.id] ?? 0;
-                return (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => setActiveId(c.id)}
-                      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition ${
-                        activeId === c.id
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground/80 hover:bg-secondary"
-                      }`}
-                    >
-                      <Hash className="h-3.5 w-3.5" />
-                      <span className="flex-1 truncate text-left">{c.name}</span>
-                      {count > 0 && activeId !== c.id && (
-                        <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                          {count > 99 ? "99+" : count}
-                        </span>
-                      )}
-                    </button>
+              {generalChannels.map((c) => (
+                <ChannelButton
+                  key={c.id}
+                  channel={c}
+                  active={activeId === c.id}
+                  count={unread[c.id] ?? 0}
+                  onClick={() => setActiveId(c.id)}
+                />
+              ))}
+              {leaderChannels.length > 0 && (
+                <>
+                  <li className="mt-3 flex items-center gap-1.5 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Lock className="h-3 w-3" /> Leaders
                   </li>
-                );
-              })}
+                  {leaderChannels.map((c) => (
+                    <ChannelButton
+                      key={c.id}
+                      channel={c}
+                      active={activeId === c.id}
+                      count={unread[c.id] ?? 0}
+                      onClick={() => setActiveId(c.id)}
+                    />
+                  ))}
+                </>
+              )}
             </ul>
           </aside>
 
@@ -1018,5 +1020,33 @@ function NewChannelDialogImpl({
         </DialogFooter>
       </form>
     </DialogContent>
+  );
+}
+
+function ChannelButton({
+  channel, active, count, onClick,
+}: {
+  channel: Channel;
+  active: boolean;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        onClick={onClick}
+        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition ${
+          active ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-secondary"
+        }`}
+      >
+        {channel.leader_only ? <Lock className="h-3.5 w-3.5" /> : <Hash className="h-3.5 w-3.5" />}
+        <span className="flex-1 truncate text-left">{channel.name}</span>
+        {count > 0 && !active && (
+          <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
+      </button>
+    </li>
   );
 }
