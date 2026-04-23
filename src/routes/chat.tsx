@@ -1022,3 +1022,31 @@ function NewChannelDialogImpl({
     </DialogContent>
   );
 }
+
+function ChannelButton({
+  channel, active, count, onClick,
+}: {
+  channel: Channel;
+  active: boolean;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        onClick={onClick}
+        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition ${
+          active ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-secondary"
+        }`}
+      >
+        {channel.leader_only ? <Lock className="h-3.5 w-3.5" /> : <Hash className="h-3.5 w-3.5" />}
+        <span className="flex-1 truncate text-left">{channel.name}</span>
+        {count > 0 && !active && (
+          <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
