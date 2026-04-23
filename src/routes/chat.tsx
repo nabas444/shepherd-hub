@@ -27,6 +27,7 @@ interface Channel {
   id: string;
   name: string;
   description: string | null;
+  leader_only?: boolean;
 }
 
 interface Message {
