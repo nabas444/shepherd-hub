@@ -47,6 +47,7 @@ export type Database = {
           description: string | null
           id: string
           is_default: boolean
+          leader_only: boolean
           name: string
         }
         Insert: {
@@ -54,6 +55,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_default?: boolean
+          leader_only?: boolean
           name: string
         }
         Update: {
@@ -61,6 +63,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_default?: boolean
+          leader_only?: boolean
           name?: string
         }
         Relationships: []
