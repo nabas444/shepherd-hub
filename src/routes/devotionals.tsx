@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Plus, Trash2, Sparkles } from "lucide-react";
+import { BookOpen, Plus, Trash2, Sparkles, Search, ShieldCheck, User as UserIcon } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,12 +33,24 @@ interface Devotional {
   publish_date: string;
 }
 
+interface AuthorProfile {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
+type Filter = "all" | "week" | "month";
+
 function DevotionalsPage() {
   const { user, loading, roles } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<Devotional[]>([]);
+  const [authors, setAuthors] = useState<Record<string, AuthorProfile>>({});
+  const [leaderIds, setLeaderIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(true);
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
   const canManage = roles.includes("leader") || roles.includes("admin");
 
   useEffect(() => {
@@ -51,7 +63,27 @@ function DevotionalsPage() {
       .from("devotionals")
       .select("*")
       .order("publish_date", { ascending: false });
-    setItems((data ?? []) as Devotional[]);
+    const list = (data ?? []) as Devotional[];
+    setItems(list);
+
+    const authorIds = Array.from(new Set(list.map((d) => d.author_id)));
+    if (authorIds.length) {
+      const [{ data: ps }, { data: rs }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, avatar_url").in("id", authorIds),
+        supabase.from("user_roles").select("user_id, role").in("user_id", authorIds),
+      ]);
+      const map: Record<string, AuthorProfile> = {};
+      (ps ?? []).forEach((p) => { map[p.id] = p as AuthorProfile; });
+      setAuthors(map);
+      const leaders = new Set<string>();
+      (rs ?? []).forEach((r) => {
+        if (r.role === "leader" || r.role === "admin") leaders.add(r.user_id);
+      });
+      setLeaderIds(leaders);
+    } else {
+      setAuthors({});
+      setLeaderIds(new Set());
+    }
     setBusy(false);
   };
 
@@ -66,6 +98,29 @@ function DevotionalsPage() {
     toast.success("Removed");
     load();
   };
+
+  const visible = useMemo(() => {
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(now.getDate() - 7);
+    const monthAgo = new Date(now);
+    monthAgo.setDate(now.getDate() - 30);
+    const q = query.trim().toLowerCase();
+    return items.filter((d) => {
+      const pd = new Date(d.publish_date);
+      if (filter === "week" && pd < weekAgo) return false;
+      if (filter === "month" && pd < monthAgo) return false;
+      if (!q) return true;
+      return (
+        d.title.toLowerCase().includes(q) ||
+        (d.scripture_reference?.toLowerCase().includes(q) ?? false) ||
+        d.body.toLowerCase().includes(q)
+      );
+    });
+  }, [items, filter, query]);
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const todays = items.find((d) => d.publish_date === todayIso);
 
   if (loading || !user) {
     return (
@@ -82,8 +137,24 @@ function DevotionalsPage() {
           <div>
             <h1 className="text-4xl font-serif text-foreground md:text-5xl">Daily Word</h1>
             <p className="mt-2 text-muted-foreground">
-              Scripture, reflection, and quiet encouragement.
+              Scripture, reflection, and quiet encouragement from your leaders.
             </p>
+            <div className="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <span><strong className="text-foreground">{items.length}</strong> total</span>
+              <span>·</span>
+              <span>
+                <strong className="text-foreground">
+                  {items.filter((d) => leaderIds.has(d.author_id)).length}
+                </strong>{" "}
+                from leaders
+              </span>
+              {todays && (
+                <>
+                  <span>·</span>
+                  <span className="text-primary">📖 Today's word is posted</span>
+                </>
+              )}
+            </div>
           </div>
           {canManage && (
             <Dialog open={open} onOpenChange={setOpen}>
@@ -101,17 +172,48 @@ function DevotionalsPage() {
           )}
         </div>
 
+        {/* Filter & search */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-lg border border-border bg-card p-1">
+            {(["all", "week", "month"] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setFilter(k)}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition ${
+                  filter === k
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {k === "all" ? "All" : k === "week" ? "This week" : "This month"}
+              </button>
+            ))}
+          </div>
+          <div className="relative flex-1 min-w-[220px] max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title, scripture or text…"
+              className="pl-9"
+            />
+          </div>
+        </div>
+
         {busy ? (
           <div className="space-y-5">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-44 rounded-2xl" />
             ))}
           </div>
-        ) : items.length === 0 ? (
-          <Empty />
+        ) : visible.length === 0 ? (
+          <Empty canManage={canManage} hasItems={items.length > 0} onCreate={() => setOpen(true)} />
         ) : (
           <div className="space-y-5">
-            {items.map((d) => (
+            {visible.map((d) => {
+              const author = authors[d.author_id];
+              const isLeaderAuthor = leaderIds.has(d.author_id);
+              return (
               <article
                 key={d.id}
                 className="rounded-2xl border border-border bg-card p-7"
@@ -127,8 +229,23 @@ function DevotionalsPage() {
                       })}
                     </div>
                     <h2 className="mt-1 font-serif text-2xl">{d.title}</h2>
+                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                      {author?.avatar_url ? (
+                        <img src={author.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                          <UserIcon className="h-3.5 w-3.5" />
+                        </span>
+                      )}
+                      <span>{author?.full_name || "A member"}</span>
+                      {isLeaderAuthor && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          <ShieldCheck className="h-3 w-3" /> Leader
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {canManage && (
+                  {(canManage || d.author_id === user.id) && (
                     <Button variant="ghost" size="sm" onClick={() => remove(d.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -154,7 +271,8 @@ function DevotionalsPage() {
                   {d.body}
                 </p>
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -162,7 +280,7 @@ function DevotionalsPage() {
   );
 }
 
-function Empty() {
+function Empty({ canManage, hasItems, onCreate }: { canManage: boolean; hasItems: boolean; onCreate: () => void }) {
   return (
     <div
       className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center"
@@ -171,10 +289,21 @@ function Empty() {
       <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <BookOpen className="h-6 w-6" />
       </div>
-      <h3 className="font-serif text-xl">No devotionals yet</h3>
+      <h3 className="font-serif text-xl">
+        {hasItems ? "No matches in this view" : "No devotionals yet"}
+      </h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        When a leader posts the Daily Word, it will appear here.
+        {hasItems
+          ? "Try changing the filter or clearing your search."
+          : canManage
+            ? "Be the first to share scripture and a short reflection."
+            : "When a leader posts the Daily Word, it will appear here."}
       </p>
+      {canManage && !hasItems && (
+        <Button className="mt-5" onClick={onCreate}>
+          <Plus className="mr-1 h-4 w-4" /> Post the first devotional
+        </Button>
+      )}
     </div>
   );
 }
