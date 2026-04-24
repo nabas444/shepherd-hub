@@ -324,3 +324,200 @@ function CreateEventDialog({
     </DialogContent>
   );
 }
+
+function CalendarView({
+  events,
+  cursor,
+  setCursor,
+}: {
+  events: EventRow[];
+  cursor: Date;
+  setCursor: (d: Date) => void;
+}) {
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startWeekday = firstOfMonth.getDay(); // 0 = Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Build 6-week grid (42 cells)
+  const cells: { date: Date; inMonth: boolean }[] = [];
+  for (let i = 0; i < startWeekday; i++) {
+    const d = new Date(year, month, i - startWeekday + 1);
+    cells.push({ date: d, inMonth: false });
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    cells.push({ date: new Date(year, month, i), inMonth: true });
+  }
+  while (cells.length < 42) {
+    const last = cells[cells.length - 1].date;
+    const next = new Date(last);
+    next.setDate(last.getDate() + 1);
+    cells.push({ date: next, inMonth: false });
+  }
+
+  // Group events by yyyy-mm-dd
+  const byDay: Record<string, EventRow[]> = {};
+  events.forEach((e) => {
+    const d = new Date(e.starts_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    (byDay[key] ||= []).push(e);
+  });
+
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+
+  const [selected, setSelected] = useState<string | null>(todayKey);
+  const selectedEvents = selected ? byDay[selected] ?? [] : [];
+  const selectedDate = selected
+    ? cells.find((c) => `${c.date.getFullYear()}-${c.date.getMonth()}-${c.date.getDate()}` === selected)?.date
+    : null;
+
+  const goPrev = () => setCursor(new Date(year, month - 1, 1));
+  const goNext = () => setCursor(new Date(year, month + 1, 1));
+  const goToday = () => {
+    const t = new Date();
+    setCursor(new Date(t.getFullYear(), t.getMonth(), 1));
+    setSelected(todayKey);
+  };
+
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div
+        className="rounded-2xl border border-border bg-card p-5"
+        style={{ boxShadow: "var(--shadow-soft)" }}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-serif text-2xl">{monthLabel}</h2>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={goToday}>
+              Today
+            </Button>
+            <Button variant="outline" size="icon" onClick={goPrev} aria-label="Previous month">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={goNext} aria-label="Next month">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {weekdays.map((w) => (
+            <div key={w} className="py-2">
+              {w}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((c, i) => {
+            const key = `${c.date.getFullYear()}-${c.date.getMonth()}-${c.date.getDate()}`;
+            const dayEvents = byDay[key] ?? [];
+            const isToday = key === todayKey;
+            const isSelected = key === selected;
+            return (
+              <button
+                key={i}
+                onClick={() => setSelected(key)}
+                className={`group flex min-h-[84px] flex-col rounded-lg border p-1.5 text-left transition ${
+                  isSelected
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-border/50 hover:border-border hover:bg-secondary/40"
+                } ${c.inMonth ? "" : "opacity-40"}`}
+              >
+                <span
+                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                    isToday
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground"
+                  }`}
+                >
+                  {c.date.getDate()}
+                </span>
+                <div className="mt-1 flex-1 space-y-0.5 overflow-hidden">
+                  {dayEvents.slice(0, 2).map((e) => (
+                    <div
+                      key={e.id}
+                      className="truncate rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary"
+                      title={e.title}
+                    >
+                      {e.title}
+                    </div>
+                  ))}
+                  {dayEvents.length > 2 && (
+                    <div className="px-1 text-[10px] text-muted-foreground">
+                      +{dayEvents.length - 2} more
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <aside
+        className="rounded-2xl border border-border bg-card p-5"
+        style={{ boxShadow: "var(--shadow-soft)" }}
+      >
+        <div className="mb-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Selected day
+          </p>
+          <h3 className="font-serif text-xl">
+            {selectedDate
+              ? selectedDate.toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "Pick a day"}
+          </h3>
+        </div>
+        {selectedEvents.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-card/40 p-6 text-center">
+            <CalendarIcon className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">No gatherings this day.</p>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {selectedEvents
+              .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+              .map((e) => {
+                const d = new Date(e.starts_at);
+                return (
+                  <li key={e.id}>
+                    <Link
+                      to="/events/$eventId"
+                      params={{ eventId: e.id }}
+                      className="block rounded-xl border border-border bg-background p-3 transition hover:-translate-y-0.5 hover:border-primary/50"
+                    >
+                      <p className="font-serif text-base font-semibold leading-tight">
+                        {e.title}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {d.toLocaleTimeString(undefined, {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      {e.location && (
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" /> {e.location}
+                        </p>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+          </ul>
+        )}
+      </aside>
+    </div>
+  );
+}
