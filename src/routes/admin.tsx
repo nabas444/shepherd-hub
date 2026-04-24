@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import {
   Users, Calendar, MessageCircle, BookOpen, HandHeart, Shield,
-  Search, Sparkles, TrendingUp, History,
+  Search, Sparkles, TrendingUp, History, ShieldCheck, Check, X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,6 +44,15 @@ interface AuditEntry {
   created_at: string;
 }
 
+interface LeaderRequest {
+  id: string;
+  user_id: string;
+  reason: string | null;
+  ministry: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+}
+
 interface Counts {
   members: number;
   newMembers: number;
@@ -71,6 +80,7 @@ function AdminPage() {
   const [query, setQuery] = useState("");
   const [recentSignups, setRecentSignups] = useState<MemberRow[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [leaderRequests, setLeaderRequests] = useState<LeaderRequest[]>([]);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -82,7 +92,7 @@ function AdminPage() {
     const todayIso = new Date().toISOString();
     const [
       profilesRes, rolesRes, eventsRes, upcomingRes, msgsRes, devsRes, mentRes, activeMentRes, recentRes,
-      auditRes,
+      auditRes, leaderReqRes,
     ] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email, status, join_date, last_activity_date, ministry"),
       supabase.from("user_roles").select("user_id, role"),
@@ -94,12 +104,14 @@ function AdminPage() {
       supabase.from("mentorships").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("profiles").select("id, full_name, email, status, join_date, last_activity_date, ministry").order("join_date", { ascending: false }).limit(5),
       supabase.from("audit_log").select("id, actor_id, action, target_user_id, details, created_at").order("created_at", { ascending: false }).limit(15),
+      supabase.from("leader_requests").select("id, user_id, reason, ministry, status, created_at").order("created_at", { ascending: false }),
     ]);
 
     const allMembers = (profilesRes.data ?? []) as MemberRow[];
     setMembers(allMembers);
     setRecentSignups((recentRes.data ?? []) as MemberRow[]);
     setAudit((auditRes.data ?? []) as AuditEntry[]);
+    setLeaderRequests((leaderReqRes.data ?? []) as LeaderRequest[]);
 
     const byUser: Record<string, AppRole[]> = {};
     ((rolesRes.data ?? []) as RoleRow[]).forEach((r) => {
@@ -141,6 +153,25 @@ function AdminPage() {
     if (insErr) { toast.error(insErr.message); return; }
     setRolesByUser((prev) => ({ ...prev, [userId]: [role] }));
     toast.success(`Role updated to ${role}`);
+  };
+
+  const reviewLeaderRequest = async (req: LeaderRequest, decision: "approved" | "rejected") => {
+    const { error } = await supabase
+      .from("leader_requests")
+      .update({ status: decision, reviewed_by: user!.id, reviewed_at: new Date().toISOString() })
+      .eq("id", req.id);
+    if (error) return toast.error(error.message);
+
+    if (decision === "approved") {
+      // Promote the user to leader (replaces existing roles for this user)
+      await supabase.from("user_roles").delete().eq("user_id", req.user_id);
+      const { error: insErr } = await supabase.from("user_roles").insert({ user_id: req.user_id, role: "leader" });
+      if (insErr) return toast.error(insErr.message);
+      setRolesByUser((prev) => ({ ...prev, [req.user_id]: ["leader"] }));
+    }
+
+    setLeaderRequests((prev) => prev.map((r) => (r.id === req.id ? { ...r, status: decision } : r)));
+    toast.success(`Request ${decision}`);
   };
 
   if (loading || !user || !isAdmin) return <PageLoader />;
@@ -237,6 +268,51 @@ function AdminPage() {
         </section>
 
         {/* Role management */}
+        {leaderRequests.filter((r) => r.status === "pending").length > 0 && (
+          <section
+            className="mb-8 rounded-2xl border border-gold/40 bg-gold/5 p-6"
+            style={{ boxShadow: "var(--shadow-soft)" }}
+          >
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold/20 text-gold-foreground">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-serif text-2xl font-semibold">Leader requests</h2>
+                <p className="text-sm text-muted-foreground">Members applying for leader access.</p>
+              </div>
+            </div>
+            <ul className="divide-y divide-border">
+              {leaderRequests.filter((r) => r.status === "pending").map((r) => {
+                const m = members.find((x) => x.id === r.user_id);
+                return (
+                  <li key={r.id} className="flex flex-wrap items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground">{m?.full_name || m?.email || "Member"}</div>
+                      <div className="text-xs text-muted-foreground">{m?.email}</div>
+                      {r.ministry && (
+                        <div className="mt-1 text-sm"><span className="text-muted-foreground">Ministry:</span> {r.ministry}</div>
+                      )}
+                      {r.reason && (
+                        <p className="mt-1 max-w-prose text-sm text-foreground/80">"{r.reason}"</p>
+                      )}
+                      <div className="mt-1 text-xs text-muted-foreground">Submitted {new Date(r.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => reviewLeaderRequest(r, "rejected")}>
+                        <X className="mr-1 h-4 w-4" /> Decline
+                      </Button>
+                      <Button size="sm" onClick={() => reviewLeaderRequest(r, "approved")}>
+                        <Check className="mr-1 h-4 w-4" /> Approve
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
         <section
           className="rounded-2xl border border-border bg-card p-6"
           style={{ boxShadow: "var(--shadow-soft)" }}
