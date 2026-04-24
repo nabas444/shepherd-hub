@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, MapPin, Users, Plus, Sparkles } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Users, Plus, Sparkles, ChevronLeft, ChevronRight, List, CalendarDays } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,12 @@ function EventsPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [filter, setFilter] = useState<"upcoming" | "past">("upcoming");
+  const [view, setView] = useState<"list" | "calendar">("list");
+  const [cursor, setCursor] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d;
+  });
   const [busy, setBusy] = useState(true);
   const [open, setOpen] = useState(false);
   const canCreate = roles.includes("leader") || roles.includes("admin");
@@ -50,10 +56,11 @@ function EventsPage() {
 
   const load = async () => {
     setBusy(true);
+    const ascending = view === "calendar" ? true : filter === "upcoming";
     const { data } = await supabase
       .from("events")
       .select("id,title,description,location,starts_at,ends_at,capacity,image_url")
-      .order("starts_at", { ascending: filter === "upcoming" });
+      .order("starts_at", { ascending });
     setEvents(data ?? []);
     const ids = (data ?? []).map((e) => e.id);
     if (ids.length) {
@@ -74,7 +81,7 @@ function EventsPage() {
   useEffect(() => {
     if (user) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, filter]);
+  }, [user, filter, view]);
 
   const now = new Date().toISOString();
   const visible = events.filter((e) =>
@@ -113,20 +120,40 @@ function EventsPage() {
           )}
         </div>
 
-        <div className="mb-6 inline-flex rounded-lg border border-border bg-card p-1">
-          {(["upcoming", "past"] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => setFilter(k)}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition ${
-                filter === k
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {k}
-            </button>
-          ))}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex rounded-lg border border-border bg-card p-1">
+            {(["list", "calendar"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium capitalize transition ${
+                  view === v
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {v === "list" ? <List className="h-3.5 w-3.5" /> : <CalendarDays className="h-3.5 w-3.5" />}
+                {v}
+              </button>
+            ))}
+          </div>
+          {view === "list" && (
+            <div className="inline-flex rounded-lg border border-border bg-card p-1">
+              {(["upcoming", "past"] as const).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setFilter(k)}
+                  className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition ${
+                    filter === k
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {busy ? (
@@ -135,6 +162,8 @@ function EventsPage() {
               <Skeleton key={i} className="h-56 rounded-2xl" />
             ))}
           </div>
+        ) : view === "calendar" ? (
+          <CalendarView events={events} cursor={cursor} setCursor={setCursor} />
         ) : visible.length === 0 ? (
           <EmptyState filter={filter} />
         ) : (
@@ -159,7 +188,7 @@ function EventCard({ event, goingCount }: { event: EventRow; goingCount: number 
       style={{ boxShadow: "var(--shadow-soft)" }}
     >
       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Calendar className="h-5 w-5" />
+        <CalendarIcon className="h-5 w-5" />
       </div>
       <h3 className="font-serif text-lg font-semibold leading-tight">{event.title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">
