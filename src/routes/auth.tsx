@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Heart } from "lucide-react";
+import { Heart, User as UserIcon, ShieldCheck } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -23,6 +24,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [signupRole, setSignupRole] = useState<"member" | "leader">("member");
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/dashboard" });
@@ -46,7 +48,7 @@ function AuthPage() {
     e.preventDefault();
     setSubmitting(true);
     const fd = new FormData(e.currentTarget);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: String(fd.get("email")),
       password: String(fd.get("password")),
       options: {
@@ -54,9 +56,31 @@ function AuthPage() {
         data: { full_name: String(fd.get("full_name")) },
       },
     });
+    if (error) {
+      setSubmitting(false);
+      return toast.error(error.message);
+    }
+
+    // If user chose to apply as a leader, file a pending request for admin review.
+    if (signupRole === "leader" && data.user) {
+      const reason = String(fd.get("leader_reason") ?? "").trim();
+      const ministry = String(fd.get("leader_ministry") ?? "").trim();
+      const { error: reqErr } = await supabase.from("leader_requests").insert({
+        user_id: data.user.id,
+        reason: reason || null,
+        ministry: ministry || null,
+        status: "pending",
+      });
+      if (reqErr) {
+        toast.error("Account created, but leader request failed: " + reqErr.message);
+      } else {
+        toast.success("Welcome! Your leader request was sent for admin approval.");
+      }
+    } else {
+      toast.success("Welcome to Shepherd Hub!");
+    }
+
     setSubmitting(false);
-    if (error) return toast.error(error.message);
-    toast.success("Welcome to Shepherd Hub!");
     navigate({ to: "/dashboard" });
   };
 
@@ -95,6 +119,48 @@ function AuthPage() {
 
             <TabsContent value="signup" className="mt-6">
               <form onSubmit={handleSignUp} className="space-y-4">
+                {/* Role intent selector */}
+                <div className="space-y-2">
+                  <Label>I'm joining as</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSignupRole("member")}
+                      className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                        signupRole === "member"
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserIcon className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold">Member</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Join the fellowship</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignupRole("leader")}
+                      className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${
+                        signupRole === "leader"
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold">Leader</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Request leader access</span>
+                    </button>
+                  </div>
+                  {signupRole === "leader" && (
+                    <p className="text-xs text-muted-foreground">
+                      An admin will review and approve your leader access.
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="su-name">Full name</Label>
                   <Input id="su-name" name="full_name" type="text" required />
@@ -107,8 +173,20 @@ function AuthPage() {
                   <Label htmlFor="su-password">Password</Label>
                   <Input id="su-password" name="password" type="password" required autoComplete="new-password" minLength={6} />
                 </div>
+                {signupRole === "leader" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="su-ministry">Ministry / area you'd lead</Label>
+                      <Input id="su-ministry" name="leader_ministry" placeholder="e.g. Worship, Youth, Prayer" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="su-reason">Why do you want to lead? (optional)</Label>
+                      <Textarea id="su-reason" name="leader_reason" rows={3} placeholder="A short note for the admins" />
+                    </div>
+                  </>
+                )}
                 <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "Creating account…" : "Create account"}
+                  {submitting ? "Creating account…" : signupRole === "leader" ? "Create account & request leader" : "Create account"}
                 </Button>
               </form>
             </TabsContent>
