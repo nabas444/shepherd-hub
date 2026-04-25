@@ -248,6 +248,47 @@ export type Database = {
         }
         Relationships: []
       }
+      event_registrations: {
+        Row: {
+          created_at: string
+          event_id: string
+          form_data: Json
+          id: string
+          payment_proof_url: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          form_data?: Json
+          id?: string
+          payment_proof_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          form_data?: Json
+          id?: string
+          payment_proof_url?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_registrations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_rsvps: {
         Row: {
           created_at: string
@@ -293,6 +334,10 @@ export type Database = {
           id: string
           image_url: string | null
           location: string | null
+          payment_amount: number | null
+          payment_instructions: string | null
+          registration_fields: Json
+          requires_payment: boolean
           starts_at: string
           title: string
           updated_at: string
@@ -306,6 +351,10 @@ export type Database = {
           id?: string
           image_url?: string | null
           location?: string | null
+          payment_amount?: number | null
+          payment_instructions?: string | null
+          registration_fields?: Json
+          requires_payment?: boolean
           starts_at: string
           title: string
           updated_at?: string
@@ -319,6 +368,10 @@ export type Database = {
           id?: string
           image_url?: string | null
           location?: string | null
+          payment_amount?: number | null
+          payment_instructions?: string | null
+          registration_fields?: Json
+          requires_payment?: boolean
           starts_at?: string
           title?: string
           updated_at?: string
