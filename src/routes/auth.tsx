@@ -61,20 +61,21 @@ function AuthPage() {
       return toast.error(error.message);
     }
 
-    // If user chose to apply as a leader, file a pending request for admin review.
+    // If user chose to join as a leader, grant the leader role immediately
+    // and update their profile with the ministry they'll lead.
     if (signupRole === "leader" && data.user) {
-      const reason = String(fd.get("leader_reason") ?? "").trim();
       const ministry = String(fd.get("leader_ministry") ?? "").trim();
-      const { error: reqErr } = await supabase.from("leader_requests").insert({
+      const { error: roleErr } = await supabase.from("user_roles").insert({
         user_id: data.user.id,
-        reason: reason || null,
-        ministry: ministry || null,
-        status: "pending",
+        role: "leader",
       });
-      if (reqErr) {
-        toast.error("Account created, but leader request failed: " + reqErr.message);
+      if (ministry) {
+        await supabase.from("profiles").update({ ministry }).eq("id", data.user.id);
+      }
+      if (roleErr) {
+        toast.error("Account created, but leader role failed: " + roleErr.message);
       } else {
-        toast.success("Welcome! Your leader request was sent for admin approval.");
+        toast.success("Welcome, leader! You can now manage events and ministries.");
       }
     } else {
       toast.success("Welcome to Shepherd Hub!");
