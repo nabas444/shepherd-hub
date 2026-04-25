@@ -298,8 +298,8 @@ function Empty({ canManage, hasItems, onCreate }: { canManage: boolean; hasItems
         {hasItems
           ? "Try changing the filter or clearing your search."
           : canManage
-            ? "Be the first to share scripture and a short reflection."
-            : "When a leader posts the Daily Word, it will appear here."}
+            ? "Be the first to share scripture and a short reflection with the community."
+            : "When someone posts the Daily Word, it will appear here."}
       </p>
       {canManage && !hasItems && (
         <Button className="mt-5" onClick={onCreate}>
