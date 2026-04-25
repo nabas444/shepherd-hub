@@ -10,6 +10,7 @@ interface AuthContextValue {
   roles: AppRole[];
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshRoles: () => Promise<void>;
   isAdmin: boolean;
   isLeader: boolean;
 }
@@ -62,6 +63,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const refreshRoles = async () => {
+    const { data: { session: s } } = await supabase.auth.getSession();
+    if (!s?.user) {
+      setRoles([]);
+      return;
+    }
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", s.user.id);
+    setRoles((data?.map((r) => r.role as AppRole)) ?? []);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -70,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         roles,
         loading,
         signOut,
+        refreshRoles,
         isAdmin: roles.includes("admin"),
         isLeader: roles.includes("leader") || roles.includes("admin"),
       }}
