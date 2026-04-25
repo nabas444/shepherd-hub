@@ -21,7 +21,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, refreshRoles } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [signupRole, setSignupRole] = useState<"member" | "leader">("member");
 
@@ -74,6 +74,7 @@ function AuthPage() {
       if (roleErr) {
         toast.error("Account created, but leader role failed: " + roleErr.message);
       } else {
+        await refreshRoles();
         toast.success("Welcome, leader! You can now manage events and ministries.");
       }
     } else {
