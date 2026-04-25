@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar as CalendarIcon, MapPin, Users, Plus, Sparkles, ChevronLeft, ChevronRight, List, CalendarDays } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Users, Plus, Sparkles, ChevronLeft, ChevronRight, List, CalendarDays, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -253,6 +254,19 @@ function CreateEventDialog({
   const [startsAt, setStartsAt] = useState("");
   const [capacity, setCapacity] = useState("");
   const [saving, setSaving] = useState(false);
+  const [requiresPayment, setRequiresPayment] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentInstructions, setPaymentInstructions] = useState("");
+  const [fields, setFields] = useState<Array<{ key: string; label: string; type: "text" | "number" | "email" | "phone" | "textarea"; required: boolean }>>([
+    { key: "full_name", label: "Full name", type: "text", required: true },
+    { key: "phone", label: "Phone number", type: "phone", required: true },
+  ]);
+
+  const addField = () =>
+    setFields((f) => [...f, { key: `field_${f.length + 1}`, label: "", type: "text", required: false }]);
+  const updateField = (i: number, patch: Partial<(typeof fields)[number]>) =>
+    setFields((f) => f.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+  const removeField = (i: number) => setFields((f) => f.filter((_, idx) => idx !== i));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,6 +274,18 @@ function CreateEventDialog({
       toast.error("Title and start time are required");
       return;
     }
+    if (requiresPayment && !paymentAmount) {
+      toast.error("Set the payment amount");
+      return;
+    }
+    const cleanFields = fields
+      .filter((f) => f.label.trim())
+      .map((f, i) => ({
+        key: f.key || `field_${i + 1}`,
+        label: f.label.trim(),
+        type: f.type,
+        required: f.required,
+      }));
     setSaving(true);
     const { error } = await supabase.from("events").insert({
       title,
@@ -268,6 +294,10 @@ function CreateEventDialog({
       starts_at: new Date(startsAt).toISOString(),
       capacity: capacity ? Number(capacity) : null,
       created_by: userId,
+      requires_payment: requiresPayment,
+      payment_amount: requiresPayment && paymentAmount ? Number(paymentAmount) : null,
+      payment_instructions: requiresPayment ? paymentInstructions || null : null,
+      registration_fields: cleanFields,
     });
     setSaving(false);
     if (error) {
@@ -282,10 +312,13 @@ function CreateEventDialog({
     setLocation("");
     setStartsAt("");
     setCapacity("");
+    setRequiresPayment(false);
+    setPaymentAmount("");
+    setPaymentInstructions("");
   };
 
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle className="font-serif text-2xl">Plan a gathering</DialogTitle>
       </DialogHeader>
@@ -312,6 +345,89 @@ function CreateEventDialog({
             <Input type="number" min="1" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="optional" />
           </div>
         </div>
+
+        <div className="rounded-lg border border-border bg-secondary/30 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Registration form fields</h4>
+              <p className="text-xs text-muted-foreground">Fields members must fill in to register.</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={addField}>
+              <Plus className="h-3.5 w-3.5" /> Add field
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {fields.map((f, i) => (
+              <div key={i} className="grid grid-cols-12 items-center gap-2">
+                <Input
+                  className="col-span-5"
+                  placeholder="Label (e.g. Age)"
+                  value={f.label}
+                  onChange={(e) => updateField(i, { label: e.target.value })}
+                />
+                <select
+                  className="col-span-3 h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                  value={f.type}
+                  onChange={(e) => updateField(i, { type: e.target.value as typeof f.type })}
+                >
+                  <option value="text">Text</option>
+                  <option value="textarea">Long text</option>
+                  <option value="number">Number</option>
+                  <option value="email">Email</option>
+                  <option value="phone">Phone</option>
+                </select>
+                <label className="col-span-3 flex items-center gap-2 text-xs">
+                  <Checkbox
+                    checked={f.required}
+                    onCheckedChange={(v) => updateField(i, { required: !!v })}
+                  />
+                  Required
+                </label>
+                <Button type="button" variant="ghost" size="icon" className="col-span-1" onClick={() => removeField(i)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            {fields.length === 0 && (
+              <p className="text-xs text-muted-foreground">No custom fields. Members can still register.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-secondary/30 p-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox checked={requiresPayment} onCheckedChange={(v) => setRequiresPayment(!!v)} />
+            Requires payment to join
+          </label>
+          {requiresPayment && (
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className="text-sm font-medium">Amount</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="100"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Payment instructions</label>
+                <Textarea
+                  rows={3}
+                  value={paymentInstructions}
+                  onChange={(e) => setPaymentInstructions(e.target.value)}
+                  placeholder="Bank: ... Account: ... Then upload your receipt screenshot."
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Members will be required to upload a screenshot of their payment evidence to register.
+              </p>
+            </div>
+          )}
+        </div>
+
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
