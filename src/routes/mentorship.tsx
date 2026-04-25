@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { HandHeart, Plus, MessageSquare, Trash2, CheckCircle2, PauseCircle, ShieldCheck, Users } from "lucide-react";
+import { HandHeart, Plus, MessageSquare, Trash2, CheckCircle2, PauseCircle, ShieldCheck, Users, Pencil, ExternalLink, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/mentorship")({
@@ -27,6 +27,8 @@ interface Profile {
   full_name: string;
   email: string | null;
   avatar_url: string | null;
+  phone?: string | null;
+  ministry?: string | null;
 }
 
 interface Mentorship {
@@ -80,7 +82,7 @@ function MentorshipPage() {
     if (ids.size) {
       const idArr = Array.from(ids);
       const [{ data: ps }, { data: rs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, avatar_url").in("id", idArr),
+        supabase.from("profiles").select("id, full_name, email, avatar_url, phone, ministry").in("id", idArr),
         supabase.from("user_roles").select("user_id, role").in("user_id", idArr),
       ]);
       const map: Record<string, Profile> = {};
