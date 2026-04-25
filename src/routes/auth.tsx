@@ -157,7 +157,7 @@ function AuthPage() {
                   </div>
                   {signupRole === "leader" && (
                     <p className="text-xs text-muted-foreground">
-                      An admin will review and approve your leader access.
+                      You'll get leader access right away — manage events, devotionals, and mentorships.
                     </p>
                   )}
                 </div>
@@ -175,19 +175,13 @@ function AuthPage() {
                   <Input id="su-password" name="password" type="password" required autoComplete="new-password" minLength={6} />
                 </div>
                 {signupRole === "leader" && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="su-ministry">Ministry / area you'd lead</Label>
-                      <Input id="su-ministry" name="leader_ministry" placeholder="e.g. Worship, Youth, Prayer" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="su-reason">Why do you want to lead? (optional)</Label>
-                      <Textarea id="su-reason" name="leader_reason" rows={3} placeholder="A short note for the admins" />
-                    </div>
-                  </>
+                  <div className="space-y-2">
+                    <Label htmlFor="su-ministry">Ministry / area you'll lead</Label>
+                    <Input id="su-ministry" name="leader_ministry" placeholder="e.g. Worship, Youth, Prayer" />
+                  </div>
                 )}
                 <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "Creating account…" : signupRole === "leader" ? "Create account & request leader" : "Create account"}
+                  {submitting ? "Creating account…" : signupRole === "leader" ? "Create account as leader" : "Create account"}
                 </Button>
               </form>
             </TabsContent>
