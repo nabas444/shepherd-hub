@@ -51,7 +51,9 @@ function DevotionalsPage() {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const canManage = roles.includes("leader") || roles.includes("admin");
+  const isLeader = roles.includes("leader") || roles.includes("admin");
+  // Anyone signed in can post a devotional now; leaders can manage all.
+  const canPost = !!user;
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -156,7 +158,7 @@ function DevotionalsPage() {
               )}
             </div>
           </div>
-          {canManage && (
+          {canPost && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -207,7 +209,7 @@ function DevotionalsPage() {
             ))}
           </div>
         ) : visible.length === 0 ? (
-          <Empty canManage={canManage} hasItems={items.length > 0} onCreate={() => setOpen(true)} />
+          <Empty canManage={canPost} hasItems={items.length > 0} onCreate={() => setOpen(true)} />
         ) : (
           <div className="space-y-5">
             {visible.map((d) => {
@@ -245,7 +247,7 @@ function DevotionalsPage() {
                       )}
                     </div>
                   </div>
-                  {(canManage || d.author_id === user.id) && (
+                  {(isLeader || d.author_id === user.id) && (
                     <Button variant="ghost" size="sm" onClick={() => remove(d.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
