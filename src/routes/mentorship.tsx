@@ -63,6 +63,7 @@ function MentorshipPage() {
   const [busy, setBusy] = useState(false);
   const [loadingPairs, setLoadingPairs] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "completed">("all");
+  const [editing, setEditing] = useState<Mentorship | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
@@ -278,6 +279,9 @@ function MentorshipPage() {
                   </div>
                   {isLeader && (
                     <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => setEditing(active)} title="Edit pairing">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Select value={active.status} onValueChange={(v) => updateStatus(active.id, v)}>
                         <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -291,6 +295,12 @@ function MentorshipPage() {
                       </Button>
                     </div>
                   )}
+                </div>
+
+                {/* Linked member details */}
+                <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                  <MemberMiniCard label="Mentor" profile={profiles[active.mentor_id]} isLeader={leaderIds.has(active.mentor_id)} />
+                  <MemberMiniCard label="Mentee" profile={profiles[active.mentee_id]} isLeader={leaderIds.has(active.mentee_id)} />
                 </div>
 
                 <div className="mb-4 space-y-2">
@@ -352,7 +362,151 @@ function MentorshipPage() {
           </div>
         </div>
       </div>
+      {editing && isLeader && (
+        <EditPairDialog
+          pairing={editing}
+          profiles={profiles}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load(); }}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function MemberMiniCard({ label, profile, isLeader }: { label: string; profile?: Profile; isLeader: boolean }) {
+  if (!profile) {
+    return (
+      <div className="rounded-xl border border-border bg-background/50 p-3 text-sm text-muted-foreground">
+        {label}: unknown member
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-border bg-background/50 p-3">
+      <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="flex items-center gap-1.5 font-medium">
+        <span>{profile.full_name || "—"}</span>
+        {isLeader && <ShieldCheck className="h-3.5 w-3.5 text-primary" aria-label="Leader" />}
+      </div>
+      {profile.ministry && (
+        <div className="text-xs text-muted-foreground">{profile.ministry}</div>
+      )}
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        {profile.email && (
+          <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{profile.email}</span>
+        )}
+        {profile.phone && (
+          <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{profile.phone}</span>
+        )}
+      </div>
+      <Link
+        to="/members/$memberId"
+        params={{ memberId: profile.id }}
+        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+      >
+        View profile <ExternalLink className="h-3 w-3" />
+      </Link>
+    </div>
+  );
+}
+
+function EditPairDialog({
+  pairing, profiles, onClose, onSaved,
+}: {
+  pairing: Mentorship;
+  profiles: Record<string, Profile>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [members, setMembers] = useState<Profile[]>(Object.values(profiles));
+  const [mentor, setMentor] = useState(pairing.mentor_id);
+  const [mentee, setMentee] = useState(pairing.mentee_id);
+  const [focus, setFocus] = useState(pairing.focus ?? "");
+  const [status, setStatus] = useState(pairing.status);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, avatar_url, phone, ministry")
+        .order("full_name");
+      setMembers((data ?? []) as Profile[]);
+    })();
+  }, []);
+
+  const save = async () => {
+    if (mentor === mentee) { toast.error("Mentor and mentee must differ"); return; }
+    setBusy(true);
+    const { error } = await supabase
+      .from("mentorships")
+      .update({
+        mentor_id: mentor,
+        mentee_id: mentee,
+        focus: focus.trim() || null,
+        status,
+        ended_at: status === "completed" ? new Date().toISOString().slice(0, 10) : null,
+      })
+      .eq("id", pairing.id);
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Pairing updated");
+    onSaved();
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit mentorship pairing</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Mentor</Label>
+            <Select value={mentor} onValueChange={setMentor}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-64">
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.full_name || m.email || m.id}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Mentee</Label>
+            <Select value={mentee} onValueChange={setMentee}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-64">
+                {members.filter((m) => m.id !== mentor).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.full_name || m.email || m.id}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="paused">Paused</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-focus">Focus</Label>
+            <Input id="edit-focus" value={focus} onChange={(e) => setFocus(e.target.value)}
+              placeholder="e.g. Discipleship basics" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
